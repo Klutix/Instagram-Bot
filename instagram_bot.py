@@ -62,13 +62,13 @@ class instagram_automation:
             #set up two tables Questions and jobs applied to
             self.c.execute('''CREATE TABLE tblUrlsVisted 
              (url text)''')
-            print("Created Anser Table")
+            print("Created tblUrlsVisted Table")
 
             # Save (commit) the changes
             self.conn.commit()
             print("Tables Created")
         except:
-            print("Tables already exist")
+            print("Tables Already Exist")
 
         #ok setup the results varaiables
         self.likes = 0
