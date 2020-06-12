@@ -41,8 +41,14 @@ class instagram_automation:
         self._chrome_options.add_argument("user-data-dir={path}".format(path = self.GOOGLE_PROFILE_PATH))
         
         #create the bot driver
-        self.driver = webdriver.Chrome(self.chromedriver, options = self._chrome_options)
-
+        try:
+            self.driver = webdriver.Chrome(self.chromedriver, options = self._chrome_options)
+        except:
+            print("An error occured in attempt to use the WebDriver.")
+            print("Make sure NO OTHER CHROME INSTANCES ARE RUNNNING before using the bot..")
+            print("or TRY making sure you have the correct chromedriver.exe in the program folder.")
+            input("Exiting Program.. Press Enter to Exit..")
+            exit()
         try:
             self.conn = sqlite3.connect('db_instagram_data.db')
             self.c = self.conn.cursor()
@@ -64,12 +70,12 @@ class instagram_automation:
         except:
             print("Tables already exist")
 
-            #ok setup the results varaiables
-            self.likes = 0
-            self.skips = 0
-            self.grabbed = 0
-            self.lph = 0
-            self.ltd = 0
+        #ok setup the results varaiables
+        self.likes = 0
+        self.skips = 0
+        self.grabbed = 0
+        self.lph = 0
+        self.ltd = 0
             
     def __del__(self):
         self.driver.close()
