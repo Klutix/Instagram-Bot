@@ -45,7 +45,8 @@ class instagram_automation:
             self.driver = webdriver.Chrome(self.chromedriver, options = self._chrome_options)
         except:
             print("An error occured in attempt to use the WebDriver.")
-            print("Make sure NO OTHER CHROME INSTANCES ARE RUNNNING before using the bot..")
+            print("--Make sure you have set <YOUR_USER_NAME> in GOOGLE_PROFILE_PATH in CONFIG.ini.")
+            print("--Make sure NO OTHER CHROME INSTANCES ARE RUNNNING before using the bot..")
             print("or TRY making sure you have the correct chromedriver.exe in the program folder.")
             input("Exiting Program.. Press Enter to Exit..")
             exit()
@@ -219,7 +220,7 @@ class instagram_automation:
                 print('{i} liked post {p}'.format(p = post, i = self.likes + 1))         
                 self.c.execute(sql,[post])
                 self.conn.commit()
-                self.ltd = self.ltd + 1     #likes to date
+                self.ltd = self.ltd + 1      #likes to date
                 self.likes = self.likes + 1  #likes this session
             elif(elem.get_attribute("aria-label") == "Unlike"): 
                 #we have already liked this in the past sorted added to the DB
@@ -250,5 +251,6 @@ class instagram_automation:
 
 insta_bot = instagram_automation()
 insta_bot.run()
+input("Press Enter to Exit Program...")
 del insta_bot
-
+exit()
