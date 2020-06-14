@@ -291,7 +291,8 @@ class instagram_automation:
             #get all urls_post on page
             urls = self.get_posts_urls()
             self.like_posts(urls)
-            self.create_results_file()
+        self.create_results_file()
+        self._state = "DONE"    
         print("Finished Running")
 
     def _manage_state(self):
@@ -329,7 +330,7 @@ def cmd_in():
         r = r.lower()
         if(r == "stop"):
             i.enabled(False)
-            if(i.get_state() == "OFF"):
+            if(i.get_state() == "OFF" or i.get_state()  == "DONE"):
                 return
         elif(r == "pause"):
             i.pause(True)
