@@ -8,8 +8,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 import sqlite3
-#from CONFIG import * #user configuration file***
-import configparser #using this for results.. may switch config to this
+import threading
+
+import configparser 
 
 import datetime
 import os       #used for working path
@@ -19,7 +20,8 @@ import sys      #used for command line arg
 class instagram_automation:
     def __init__(self): #path is hardcoded for windows
         #first set up config
-        self.set_config()
+        self.create_example_ini()
+        self.set_config_from_ini()
         #Chrome Driver Setup---------------------------------------------
         #options create options to handle profiles and or headless
         self._chrome_options = Options()
@@ -38,7 +40,7 @@ class instagram_automation:
     
         #add the profile to options
         self._chrome_options.add_argument('--profile-directory=Default')
-        self._chrome_options.add_argument("user-data-dir={path}".format(path = self.GOOGLE_PROFILE_PATH))
+        self._chrome_options.add_argument("user-data-dir={path}".format(path = self._GOOGLE_PROFILE_PATH))
         
         #create the bot driver
         try:
@@ -50,48 +52,67 @@ class instagram_automation:
             print("or TRY making sure you have the correct chromedriver.exe in the program folder.")
             input("Exiting Program.. Press Enter to Exit..")
             exit()
-        try:
-            self.conn = sqlite3.connect('db_instagram_data.db')
-            self.c = self.conn.cursor()
-        except sqlite3.Error:
-            print ("Error open db.\n")
-            print("Exiting Program")
-            input("Press Enter to Exit Program...")
-            exit()
-            
-        try:
-            #set up two tables Questions and jobs applied to
-            self.c.execute('''CREATE TABLE tblUrlsVisted 
-             (url text)''')
-            print("Created tblUrlsVisted Table")
-
-            # Save (commit) the changes
-            self.conn.commit()
-            print("Tables Created")
-        except:
-            print("Tables Already Exist")
+##        try:
+##            self.conn = sqlite3.connect('db_instagram_data.db')
+##            self.c = self.conn.cursor()
+##        except sqlite3.Error:
+##            print ("Error open db.\n")
+##            print("Exiting Program")
+##            input("Press Enter to Exit Program...")
+##            exit()
+##            
+##        try:
+##            #set up two tables Questions and jobs applied to
+##            self.c.execute('''CREATE TABLE tblUrlsVisted 
+##             (url text)''')
+##            print("Created tblUrlsVisted Table")
+##
+##            # Save (commit) the changes
+##            self.conn.commit()
+##            print("Tables Created")
+##        except:
+##            print("Tables Already Exist")
 
         #ok setup the results varaiables
-        self.likes = 0
-        self.skips = 0
-        self.grabbed = 0
-        self.lph = 0
-        self.ltd = 0
-            
-    def __del__(self):
-        self.driver.close()
+        self._likes = 0
+        self._skips = 0
 
+        self._enabled = True
+        self._paused = False
+   
         
-    def set_config(self):
-        #create configuration file if not exist
-        if not os.path.exists('config.ini'):
+    #config getters and setters ------------
+    def get_GOOGLE_PROFILE_PATH():
+        return _GOOGLE_PROFILE_PATH
+    def set_GOOGLE_PROFILE_PATH(GOOGLE_PROFILE_PATH):
+        _GOOGLE_PROFILE_PATH = GOOGLE_PROFILE_PATH
+    def get_LIKE_LIMIT_PER_CATGEORY():
+        return _LIKE_LIMIT_PER_CATGEORY
+    def set_LIKE_LIMIT_PER_CATGEORY(LIKE_LIMIT_PER_CATGEORY):
+        _LIKE_LIMIT_PER_CATGEORY
+    def get_LIKE_DELAY_RANGE():
+        return _LIKE_DELAY_RANGE
+    def set_LIKE_DELAY_RANGE(LIKE_DELAY_RANGE):
+        _LIKE_DELAY_RANGE = LIKE_DELAY_RANGE
+    def get_CATEGORIES():
+        return _CATEGORIES
+    def set_CATEGORIES(CATEGORIES):
+        _CATEGORIES = CATEGORIES
+
+    #results getter
+    def get_results_list():
+        return [self._likes,self._skips,self._grabbed]
+
+
+    #creates a template CONFIG.ini | user then tailors it to their needs
+    def create_example_ini(self):
+         if not os.path.exists('config.ini'):
             print("Creating config file: Results.ini")
             date = datetime.datetime.now()
             config = configparser.ConfigParser()
             config['CONFIG'] = {}
             config['CONFIG']['GOOGLE_PROFILE_PATH'] = "C:\\Users\\YOUR_USER_NAME\\AppData\\Local\\Google\\Chrome\\User Data" 
             config['CONFIG']['LIKE_LIMIT_PER_CATGEORY'] = '5'
-            config['CONFIG']['GRAB_LIMIT'] = '300'
             config['CONFIG']['LIKE_DELAY_RANGE'] = '15 60'
             config['CONFIG']['SCROLL_COUNT'] = '5'
             config['CONFIG']['CATEGORIES'] = "#Fractals #FractalArt #prettyArt"
@@ -102,46 +123,55 @@ class instagram_automation:
             input("Press Enter to continue...")
             exit()
 
-        #pull from the config file
-        config = configparser.ConfigParser()
-        config.read('CONFIG.ini')
-        
-        self.GOOGLE_PROFILE_PATH     = config['CONFIG']['GOOGLE_PROFILE_PATH']
-        self.LIKE_LIMIT_PER_CATGEORY = int(config['CONFIG']['LIKE_LIMIT_PER_CATGEORY'])
-        self.GRAB_LIMIT              = int(config['CONFIG']['GRAB_LIMIT'])
-        self.LIKE_DELAY_RANGE        = list(map(int,config['CONFIG']['LIKE_DELAY_RANGE'].split()))
-        self.SCROLL_COUNT            = int(config['CONFIG']['SCROLL_COUNT'])
-        self.CATEGORIES              = config['CONFIG']['CATEGORIES'].split()
+    #reads CONFIG.ini and sets proper values
+    def set_config_from_ini(self):
+        if os.path.exists('config.ini'):  
+            #create configuration file if not exist
+            #pull from the config file
+            config = configparser.ConfigParser()
+            config.read('CONFIG.ini')
+            
+            self._GOOGLE_PROFILE_PATH     = config['CONFIG']['GOOGLE_PROFILE_PATH']
+            self._LIKE_LIMIT_PER_CATGEORY = int(config['CONFIG']['LIKE_LIMIT_PER_CATGEORY'])
+            self._LIKE_DELAY_RANGE        = list(map(int,config['CONFIG']['LIKE_DELAY_RANGE'].split()))
+            self._SCROLL_COUNT            = int(config['CONFIG']['SCROLL_COUNT'])
+            self._CATEGORIES              = config['CONFIG']['CATEGORIES'].split()
 
-        #make sure user has been set correctly
-        if('YOUR_USER_NAME' in self.GOOGLE_PROFILE_PATH):
-             print("!! -- Replace <YOUR_USER_NAME> in GOOGLE_PROFILE_PATH in CONFIG.ini then rerun program")
-             print("Exiting Program")
-             input("Press Enter to Exit Program...")
-             exit()
+            #make sure user has been set correctly
+            if('YOUR_USER_NAME' in self._GOOGLE_PROFILE_PATH):
+                 print("!! -- Replace <YOUR_USER_NAME> in GOOGLE_PROFILE_PATH in CONFIG.ini then rerun program")
+                 print("Exiting Program")
+                 input("Press Enter to Exit Program...")
+                 exit()
+        else:
+            print("error.. missing CONFIG.ini")
 
+    #creates Results.txt with results of run <<----this needs to be adjusted for every run in case of error
     def create_results_file(self):
         print("Creating results file: Results.txt")
         date = datetime.datetime.now()
         config = configparser.ConfigParser()
         config['Results_{}'.format(date)] = {}
-        config['Results_{}'.format(date)]['LIKES'] = str(self.likes)
-        config['Results_{}'.format(date)]['SKIPS'] = str(self.skips)
-        config['Results_{}'.format(date)]['GRABED'] = str(self.grabbed)
+        config['Results_{}'.format(date)]['LIKES'] = str(self._likes)
+        config['Results_{}'.format(date)]['SKIPS'] = str(self._skips)
 
         with open('Results.txt', 'a') as configfile:
             config.write(configfile)
         print("Created results file.")
-        
+
+    #custom sleep function to handle in possible range
     def sleep(self,_from,_to):
         sleep_time = randint(_from,_to)
         print('sleeping for {} seconds'.format(sleep_time)) 
         time.sleep(sleep_time)
-                
+
+    #opens to instagram.com 
     def open_instagram(self):
         print('opening instagram')
         self.driver.get('https://www.instagram.com/')
 
+    #clicks on search, enters search value, then 
+    #presses down to select first from drop down then hits enter for search
     def search(self,search_text):
         #find search textbar
         try:
@@ -165,9 +195,11 @@ class instagram_automation:
         elem.send_keys(Keys.ENTER)
         time.sleep(3) #let things load
 
+    #scroll down to botton of document body
     def scroll(self):
         self.driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
 
+    #querys database to see if url exist or not
     def _is_used_url(self,url):
         t = (url,) #safer then python string functions according to SquliteDoc
         self.c.execute("SELECT url FROM tblUrlsVisted WHERE url = '{}'".format(url))
@@ -175,33 +207,39 @@ class instagram_automation:
             return True
         return False
 
-    def get_posts_urls(self,limit):
+    #gets a list of urls from search results page
+    def get_posts_urls(self):
         print('getting url list..')
         #gets urls listed on page
         elems = self.driver.find_elements_by_xpath("//a[@href]")
         count = 0
         url_list = []
         for elem in elems:
-            if(count == limit):
-                break
             url = elem.get_attribute("href")
             #grab on post with /p which means its a user post
             if('.com/p' in url):
                 #check if url is already exist in DB
                 if(self._is_used_url(url)):
-                    self.skips = self.skips + 1
+                    self._skips = self._skips + 1
                 else:
                     url_list.append(url)
                     print(url)
-                    cout = count + 1
         #count add to total grabbed            
-        self.grabbed  = self.grabbed + len(url_list)
         return url_list
 
-    def like_posts(self,post_list_urls,limit = 30,sleep_from = 3,sleep_to = 10 ):
+    #likes all post urls in a url list and uses range of manage like speed
+    def like_posts(self,post_list_urls):
         count = 0
         for post in post_list_urls:
-            if (count == limit):
+            if(not self._enabled):
+                print("break")
+                print("stopped!!!!!")
+                break
+            if(self._paused):
+                print("PAUSED")
+            while(self._paused):
+                time.sleep(1)
+            if (count == self._LIKE_LIMIT_PER_CATGEORY):
                 print("like limit reached")
                 break
             
@@ -217,40 +255,105 @@ class instagram_automation:
             if (elem.get_attribute("aria-label") == "Like"):
                 elem.click()
                 count = count + 1
-                print('{i} liked post {p}'.format(p = post, i = self.likes + 1))         
+                print('{i} liked post {p}'.format(p = post, i = self._likes + 1))         
                 self.c.execute(sql,[post])
                 self.conn.commit()
-                self.ltd = self.ltd + 1      #likes to date
-                self.likes = self.likes + 1  #likes this session
+                #self.ltd = self.ltd + 1      #likes to date
+                self._likes = self._likes + 1  #likes this session
             elif(elem.get_attribute("aria-label") == "Unlike"): 
                 #we have already liked this in the past sorted added to the DB
                 self.c.execute(sql,[post])
                 self.conn.commit()
-                self.ltd = self.ltd + 1     #likes to date
-                self.skips = self.skips + 1
+                #self.ltd = self.ltd + 1     #likes to date
+                self._skips = self._skips + 1
                 print('Skipping {}'.format(post))
             else:
                 print("Something isnt right.. not loaded or not were im supposed to be. Moving on..")
                 continue
             #sleep for moment to keep bot human like    
-            self.sleep(sleep_from,sleep_to)
+            self.sleep(self._LIKE_DELAY_RANGE[0],self._LIKE_DELAY_RANGE[1])
 
+    #main bot driver
     def run(self):
+        try:
+            self.conn = sqlite3.connect('db_instagram_data.db')
+            self.c = self.conn.cursor()
+        except sqlite3.Error:
+            print ("Error open db.\n")
+            print("Exiting Program")
+            input("Press Enter to Exit Program...")
+            exit()
+            
+        try:
+            #set up two tables Questions and jobs applied to
+            self.c.execute('''CREATE TABLE tblUrlsVisted 
+             (url text)''')
+            print("Created tblUrlsVisted Table")
+
+            # Save (commit) the changes
+            self.conn.commit()
+            print("Tables Created")
+        except:
+            print("Tables Already Exist")
+
+
+        
         self.open_instagram()
-        for c in self.CATEGORIES:   
+        for c in self._CATEGORIES:
+            if(not self._enabled):
+                print("break")
+                break
+            while(self._paused):
+                sleep(1)
+            print("Searching..")
             self.search(c)
             #scroll down to get more results
-            for x in range(0, self.SCROLL_COUNT):
+            for x in range(0, self._SCROLL_COUNT):
                 self.scroll()
                 time.sleep(1)
             #get all urls_post on page
-            urls = self.get_posts_urls(self.GRAB_LIMIT)
-            self.like_posts(urls,self.LIKE_LIMIT_PER_CATGEORY,self.LIKE_DELAY_RANGE[0],self.LIKE_DELAY_RANGE[1])
+            urls = self.get_posts_urls()
+            self.like_posts(urls)
             self.create_results_file()
         print("Finished Running")
 
-insta_bot = instagram_automation()
-insta_bot.run()
-input("Press Enter to Exit Program...")
-del insta_bot
-exit()
+
+    def pause(self, v):
+        self._paused = v
+
+    def enabled(self,v):
+        self._enabled = v
+
+
+        
+#int main---------------------------------------------still testing class above
+        #with threading functionality
+i = instagram_automation()
+t = threading.Thread(target=i.run)
+t.start()
+
+def cmd_in():
+    while(True):
+        r = input("Enter Command\n")
+        if(r == "stop"):
+            i.enabled(False)
+        elif(r == "pause"):
+            i.pause(True)
+        elif(r == "resume"):
+            i.pause(False)
+            
+cmd_in()
+        
+
+
+
+
+
+
+
+    
+
+
+
+
+
