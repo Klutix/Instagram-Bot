@@ -31,12 +31,6 @@ class instagram_automation:
         
         #set the environment
         os.environ["webdriver.chrome.driver"] = self.chromedriver
-
-        #make headless #might be flagging server.. need to test this
-        #self._chrome_options.add_argument('--remote-debugging-port=9222')
-        #self._chrome_options.add_argument("--headless")        #self._chrome_options.add_argument("--disable-gpu") # needed for headless
-        #self._chrome_options.add_argument("window-size=1200x600");
-        #self._chrome_options.add_argument("--disable-extensions")
     
         #add the profile to options
         self._chrome_options.add_argument('--profile-directory=Default')
@@ -52,26 +46,6 @@ class instagram_automation:
             print("or TRY making sure you have the correct chromedriver.exe in the program folder.")
             input("Exiting Program.. Press Enter to Exit..")
             exit()
-##        try:
-##            self.conn = sqlite3.connect('db_instagram_data.db')
-##            self.c = self.conn.cursor()
-##        except sqlite3.Error:
-##            print ("Error open db.\n")
-##            print("Exiting Program")
-##            input("Press Enter to Exit Program...")
-##            exit()
-##            
-##        try:
-##            #set up two tables Questions and jobs applied to
-##            self.c.execute('''CREATE TABLE tblUrlsVisted 
-##             (url text)''')
-##            print("Created tblUrlsVisted Table")
-##
-##            # Save (commit) the changes
-##            self.conn.commit()
-##            print("Tables Created")
-##        except:
-##            print("Tables Already Exist")
 
         #ok setup the results varaiables
         self._likes = 0
@@ -79,6 +53,9 @@ class instagram_automation:
 
         self._enabled = True
         self._paused = False
+
+        self._state = "OFF"
+        
    
         
     #config getters and setters ------------
@@ -98,6 +75,9 @@ class instagram_automation:
         return _CATEGORIES
     def set_CATEGORIES(CATEGORIES):
         _CATEGORIES = CATEGORIES
+
+    def get_state(self):
+        return (self._state)
 
     #results getter
     def get_results_list():
@@ -215,6 +195,9 @@ class instagram_automation:
         count = 0
         url_list = []
         for elem in elems:
+            state = self._manage_state()
+            if(state == "OFF"):
+                break
             url = elem.get_attribute("href")
             #grab on post with /p which means its a user post
             if('.com/p' in url):
@@ -231,14 +214,9 @@ class instagram_automation:
     def like_posts(self,post_list_urls):
         count = 0
         for post in post_list_urls:
-            if(not self._enabled):
-                print("break")
-                print("stopped!!!!!")
+            state = self._manage_state()
+            if(state == "OFF"):
                 break
-            if(self._paused):
-                print("PAUSED")
-            while(self._paused):
-                time.sleep(1)
             if (count == self._LIKE_LIMIT_PER_CATGEORY):
                 print("like limit reached")
                 break
@@ -275,6 +253,7 @@ class instagram_automation:
 
     #main bot driver
     def run(self):
+        self._state = "ON"
         try:
             self.conn = sqlite3.connect('db_instagram_data.db')
             self.c = self.conn.cursor()
@@ -300,11 +279,9 @@ class instagram_automation:
         
         self.open_instagram()
         for c in self._CATEGORIES:
-            if(not self._enabled):
-                print("break")
+            state = self._manage_state()
+            if(state == "OFF"):
                 break
-            while(self._paused):
-                sleep(1)
             print("Searching..")
             self.search(c)
             #scroll down to get more results
@@ -317,7 +294,19 @@ class instagram_automation:
             self.create_results_file()
         print("Finished Running")
 
-
+    def _manage_state(self):
+        if(not self._enabled):
+            print("break")
+            self._state == "OFF"
+            return self._state
+        if(self._paused):
+                print("PAUSED")
+        while(self._paused):
+            self._state ="PAUSED"
+            time.sleep(1)
+            self._state = "ON"
+        return self._state
+        
     def pause(self, v):
         self._paused = v
 
@@ -334,15 +323,32 @@ t.start()
 
 def cmd_in():
     while(True):
-        r = input("Enter Command\n")
+        state = i.get_state()
+        print("Enter Commands at any time\n")
+        r = input("!!-----------COMMANDS-------------\n\n-----PAUSE\n-----RESUME\n-----STOP\n-----EXIT\n\n")
+        r = r.lower()
         if(r == "stop"):
             i.enabled(False)
+            if(i.get_state() == "OFF"):
+                return
         elif(r == "pause"):
             i.pause(True)
+            if(i.get_state() == "PAUSED"):
+                continue
         elif(r == "resume"):
             i.pause(False)
-            
-cmd_in()
+            if(i.get_state() == "ON"):
+                continue
+        else:
+            continue
+        while(i.get_state() == state):
+            time.sleep(1)
+
+if __name__ == "__main__":    
+    cmd_in()
+    del i
+    input("Program finished press enter to exit...")
+    exit()
         
 
 
