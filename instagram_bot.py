@@ -44,9 +44,31 @@ class instagram_automation:
             input("Exiting Program.. Press Enter to Exit..")
             exit()
 
+##        try:
+##            self.conn = sqlite3.connect('db_instagram_data.db')
+##            self.c = self.conn.cursor()
+##        except sqlite3.Error:
+##            print ("Error open db.\n")
+##            print("Exiting Program")
+##            input("Press Enter to Exit Program...")
+##            exit()
+##            
+##        try:
+##            #set up two tables Questions and jobs applied to
+##            self.c.execute('''CREATE TABLE tblUrlsVisted 
+##             (url text)''')
+##            print("Created tblUrlsVisted Table")
+##
+##            # Save (commit) the changes
+##            self.conn.commit()
+##            print("Tables Created")
+##        except:
+            print("Tables Already Exist")
+
         #ok setup the results varaiables
         self._likes = 0
         self._skips = 0
+        self._skips_list = []
 
         self._enabled = True
         self._paused = False
@@ -62,10 +84,9 @@ class instagram_automation:
         self._date = datetime.date.today()
         self._likes_today = 0
 
+        t2 = threading.Thread(target=self.cmd_in)
+        t2.start()
         
-            
-        
-   
         
     #config getters and setters ------------
     def get_GOOGLE_PROFILE_PATH():
@@ -142,7 +163,8 @@ class instagram_automation:
         config = configparser.ConfigParser()
         config['Results_{}'.format(date)] = {}
         config['Results_{}'.format(date)]['LIKES'] = str(self._likes)
-        config['Results_{}'.format(date)]['SKIPS'] = str(self._skips)
+        config['Results_{}'.format(date)]['SKIPS'] = str(self._skips_list)
+        config['Results_{}'.format(date)]['CATEGORIES'] = str(self._CATEGORIES)
         config['Results_{}'.format(date)]['LIKES_TODAY'] = str(self._likes_today)
 
         with open('Results.txt', 'a') as configfile:
@@ -221,6 +243,7 @@ class instagram_automation:
                 else:
                     url_list.append(url)
                     print(url)
+        self._skips_list.append(self._skips)
         #count add to total grabbed
         self._urls_remaining_count = len(url_list)
         a = self._LIKE_LIMIT_PER_CATGEORY
@@ -275,53 +298,61 @@ class instagram_automation:
             self._urls_in_queue = self._urls_in_queue - 1
             #sleep for moment to keep bot human like    
             self._sleep_with_iterupt(self._LIKE_DELAY_RANGE[0],self._LIKE_DELAY_RANGE[1])
-
+            if(not self._enabled):
+                return
     #main bot driver
-    def run(self):
-        self._state = "ON"
-        try:
-            self.conn = sqlite3.connect('db_instagram_data.db')
-            self.c = self.conn.cursor()
-        except sqlite3.Error:
-            print ("Error open db.\n")
-            print("Exiting Program")
-            input("Press Enter to Exit Program...")
-            exit()
-            
-        try:
-            #set up two tables Questions and jobs applied to
-            self.c.execute('''CREATE TABLE tblUrlsVisted 
-             (url text)''')
-            print("Created tblUrlsVisted Table")
+    def run(self):     
+        while(True):
+            if(self._state == "ON"):
+                try:
+                    self.conn = sqlite3.connect('db_instagram_data.db')
+                    self.c = self.conn.cursor()
+                except sqlite3.Error:
+                    print ("Error open db.\n")
+                    print("Exiting Program")
+                    input("Press Enter to Exit Program...")
+                    exit()
+                    
+                try:
+                    #set up two tables Questions and jobs applied to
+                    self.c.execute('''CREATE TABLE tblUrlsVisted 
+                     (url text)''')
+                    print("Created tblUrlsVisted Table")
 
-            # Save (commit) the changes
-            self.conn.commit()
-            print("Tables Created")
-        except:
-            print("Tables Already Exist")
+                    # Save (commit) the changes
+                    self.conn.commit()
+                    print("Tables Created")
+                except:
+                    print("Tables Already Exist")
 
 
-        
-        self.open_instagram()
-        for c in self._CATEGORIES:
-            self._category_current = c
-            state = self._manage_state()
-            self._print_feedback()
-            if(state == "OFF"):
-                break
-            print("Searching..")
-            self.search(c)
-            #scroll down to get more results
-            for x in range(0, self._SCROLL_COUNT):
-                self._manage_state()
-                self.scroll()
+                self._skips = 0
+                self.open_instagram()
+                for c in self._CATEGORIES:
+                    self._category_current = c
+                    state = self._manage_state()
+                    self._print_feedback()
+                    if(state == "OFF"):
+                        break
+                    print("Searching..")
+                    self.search(c)
+                    #scroll down to get more results
+                    for x in range(0, self._SCROLL_COUNT):
+                        self._manage_state()
+                        self.scroll()
+                        time.sleep(1)
+                    #get all urls_post on page
+                    urls = self.get_posts_urls()
+                    self.like_posts(urls)
+                    
+                    if(not self._enabled):
+                        break
+                self.create_results_file()
+                self._state = "DONE"
+                self._print_feedback()
+                print("Finished Running")
+            else:
                 time.sleep(1)
-            #get all urls_post on page
-            urls = self.get_posts_urls()
-            self.like_posts(urls)
-        self.create_results_file()
-        self._state = "DONE"    
-        print("Finished Running")
 
     def _manage_state(self):
         if(not self._enabled):
@@ -336,11 +367,15 @@ class instagram_automation:
             self._state ="PAUSED"
             self._print_feedback()
             time.sleep(1)
+            if(not self._enabled):
+                return self._state
         self._state = "ON"
+        
         return self._state
 
     def count_todays_likes(self):
         sql = "SELECT COUNT(url) from tblUrlsVisted WHERE date = '{}'".format(self._date)
+        
         self.c.execute(sql)
         self._likes_today = self.c.fetchone()[0]
         
@@ -350,6 +385,10 @@ class instagram_automation:
 
     def enabled(self,v):
         self._enabled = v
+        if(not self._enabled):            
+            self._state = "OFF"
+        else:
+            self._state = "ON"
 
     # define our clear function 
     def _clear(self): 
@@ -366,37 +405,73 @@ class instagram_automation:
         self._time_remaining = sleep_time
         for t in range(0, sleep_time):
             if(not self._enabled):
-                self.create_results_file()
-                input("Bot Was STOPPED.. Press Enter to Exit Program")
-                exit()
+                return
             time.sleep(1)
             self._time_remaining =  self._time_remaining - 1
             state = self._manage_state()
             self._print_feedback()
-            
 
-    def _print_feedback(self):
-        
-        
-        self.count_todays_likes()
+    def cmd_in(self):       
+        t = threading.Thread(target=self.run)
+        started = False
+        self._print_feedback(False)
+        while(True):
+            state = self.get_state()
+            
+            r = input()
+            r = r.lower()
+            if(r == "stop" or r == "4"):
+                self.enabled(False)     
+                if(self._state == "DONE"): #hmm quarky..maybe bad
+                    self._print_feedback(False)
+                    t.join()
+                    #return
+                #return
+            elif(r == "pause" or r == "2"):
+                self.pause(True)
+                if(self._state == "PAUSED"):
+                    continue
+            elif(r == "resume" or r == "3"):
+                self.pause(False)
+                if(self._state == "ON"):
+                    continue
+            elif(r == "start"or r == "1"):
+                if(self._state == "OFF" or self._state == "DONE" ):
+                    self.enabled(True)
+                    if(not started):
+                        t.start()
+                        started = True
+                else:
+                    continue
+            elif(r == "exit"or r == "5"):
+                return
+            else:
+                continue
+            while(self._state == state):
+                time.sleep(1)
+
+    def _print_feedback(self, count_likes = True):
+        if(count_likes):
+            self.count_todays_likes()
         out_layout = str("\033[1;33;40m-----------------------Instagram Automation Tool------------------------\n"
-            "  \033[1;35;40mUrls Available:\033[0;33;40m{urls_remaining_count}           \033[92m STATUS:{state}\n" #green
-            "  \033[1;35;40mUrls in Queue:\033[0;33;40m{queue}                    \033[94m Sleep time Remaining:\033[1;37;40m{tm}\n" 
-            "  \033[1;35;40mLimit:\033[0;33;40m{limit}"
+            " \033[0;33;40m@ \033[1;35;40mUrls Available:\033[0;33;40m{urls_remaining_count}         \033[92m STATUS:{state}\n" 
+            " \033[0;33;40m@ \033[1;35;40mUrls In Queue:\033[0;33;40m{queue}             \033[94m Sleep-Time Remaining:\033[1;37;40m{tm}\n" 
+            " \033[0;33;40m@ \033[1;35;40mUrls Skips:\033[0;33;40m{skips}\n"
+            " \033[0;33;40m@ \033[1;35;40mUrl Limit:\033[0;33;40m{limit}\n"
             "\n\033[0;33;40m"
             " * \033[1;36;40mLast Url:\033[0;33;40m{last_url}\n"
             " * \033[1;36;40mCatgeorgies:\033[0;33;40m{catgories_list}\n"                       
             " * \033[1;36;40mCurent Category: \033[1;34;40m{current_category}\n"
             "\n"                                                                                            
             " \033[0;33;40m-\033[1;37;40m Likes:\033[1;34;40m{likes}\n"
-            " \033[0;33;40m-\033[1;37;40m Skips:\033[1;34;40m{skips}\n"
-            " \033[0;33;40m#\033[1;37;40m Total likes Today :\033[1;34;40m{today_likes}\n"
+            " \033[0;33;40m#\033[1;37;40m Total Likes Today :\033[1;34;40m{today_likes}\n"
             "\033[1;33;40m************************************************************************\n"
             "------------------------------------------------------------------------\n"
             " \033[1;34;40mCOMMANDS LIST:\n"                               
-            "   \033[1;33;40m1)PAUSE\n" 
-            "   2)STOP\n"
+            "   \033[1;33;40m1)START\n"
+            "   2)PAUSE\n"             
             "   3)RESUME\n"
+            "   4)STOP\n"
             "\n"             
             "\033[1;37;40mEnter Command or # at anytime...\n")
         self._clear()
@@ -413,37 +488,11 @@ class instagram_automation:
                                 limit = self._LIKE_LIMIT_PER_CATGEORY))
 
     
-#int main---------------------------------------------still testing class above
-#with threading functionality
-i = instagram_automation()
-t = threading.Thread(target=i.run)
-t.start()
 
-def cmd_in():
-    while(True):
-        state = i.get_state()
-        r = input()
-        r = r.lower()
-        if(r == "stop" or r == "2"):
-            i.enabled(False)
-            if(i.get_state() == "OFF" or i.get_state()  == "DONE"): #hmm quarky..maybe bad
-                return
-            return
-        elif(r == "pause" or r == "1"):
-            i.pause(True)
-            if(i.get_state() == "PAUSED"):
-                continue
-        elif(r == "resume"or r == "3"):
-            i.pause(False)
-            if(i.get_state() == "ON"):
-                continue
-        else:
-            continue
-        while(i.get_state() == state):
-            time.sleep(1)
 
 if __name__ == "__main__":    
-    cmd_in()
+    i = instagram_automation()
+    i.cmd_in()
     del i
     exit()
         
