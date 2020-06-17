@@ -78,6 +78,8 @@ class instagram_automation:
         self._category_current = ''
         self._date = datetime.date.today()
         self._likes_today = 0
+
+        self._paused_time = 0
         
         self.cmd_in()
         
@@ -240,11 +242,11 @@ class instagram_automation:
         self._skips_list.append(self._skips)
         #count add to total grabbed
         self._urls_remaining_count = len(url_list)
-        a = self._LIKE_LIMIT_PER_CATGEORY
+        #a = self._LIKE_LIMIT_PER_CATGEORY
         if(self._LIKE_LIMIT_PER_CATGEORY <= self._urls_remaining_count):
             self._urls_in_queue = self._LIKE_LIMIT_PER_CATGEORY
         else:
-            self._urls_in_queue = a
+            self._urls_in_queue = self._urls_remaining_count
         return url_list
 
     #likes all post urls in a url list and uses range of manage like speed
@@ -265,7 +267,7 @@ class instagram_automation:
             
             #get the like icon
             elem = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'svg')))
-
+            time.sleep(1) # might not need..added for rendering tests for double like
             sql = ''' INSERT INTO tblUrlsVisted(url,date) VALUES(?,?) '''
             
             #check if shows "Like or Unlike" if like exist on page then go and like
@@ -320,6 +322,7 @@ class instagram_automation:
                     print("Tables Already Exist")
 
                 self.set_config_from_ini()
+                self._paused_time = 0
                 self._start = timeit.default_timer()
                 self._skips = 0
                 self.enabled(True)
@@ -422,19 +425,26 @@ class instagram_automation:
             r = r.lower()
             if(r == "stop" or r == "4"):
                 self.enabled(False)     
-                if(self._state == "DONE"): #hmm quarky..maybe bad
+                if(self._state == "DONE"):
+                    print("STOPPED")
+                    time.sleep(2)
                     self._print_feedback(False)
                     t.join()
-                    #return
-                #return
             elif(r == "pause" or r == "2"):
                 if(self._state == "ON"):
                     self.pause(True)
+                    self._paused_time =  self._paused_time + int(-1*(self._start - timeit.default_timer()))
+                    print("PAUSED")
+                    time.sleep(2)
                 else:
                     continue
             elif(r == "resume" or r == "3"):
                 if(self._state == "PAUSED"):
                     self.pause(False)
+                    self._start = timeit.default_timer()
+                    print("RESUMED")
+                    time.sleep(2)
+                    
                 else:
                     continue
             elif(r == "start"or r == "1"):
@@ -456,8 +466,10 @@ class instagram_automation:
         stop = 0
         if(is_running):
             self.count_todays_likes()
-            stop = int(-1*(self._start - timeit.default_timer()))
-
+            if(not self._state == "PAUSED"):
+                stop = self._paused_time + int(-1*(self._start - timeit.default_timer()))
+            else:
+                stop = self._paused_time
         out_layout = str("\033[1;33;40m-----------------------Instagram Automation Tool------------------------\n"
             " \033[0;33;40m@ \033[1;35;40mUrls Available:\033[0;33;40m{urls_remaining_count}            \033[94m Runtime:\033[1;37;40m{rn}  \033[92m STATUS:{state}\n" 
             " \033[0;33;40m@ \033[1;35;40mUrls In Queue:\033[0;33;40m{queue}             \033[94m Sleep-Time Remaining:\033[1;37;40m{tm}\n" 
