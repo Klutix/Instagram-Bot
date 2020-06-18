@@ -44,7 +44,7 @@ categories = #fractalart #fractals #prettyArt
 
 ## Usage
 
-You can simply use the exe. in the *Dist* folder. or You import into a script and run. Exmaple:
+You can use the executable in the *Dist* folder or you import into a script and use like:
 
 ```python
 import instagram_automation
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     del i                        # delete the object to kill bot
     exit()
 ```
-
+remember to include the chromedriver.exe in the same folder as the script or executable.
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
