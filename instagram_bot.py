@@ -377,7 +377,7 @@ class instagram_automation:
                     
                 try:
                     #set up two tables Questions and jobs applied to
-                    self.c.execute('''CREATE TABLE tblUrlsVisted (url text)''')
+                    self.c.execute('''CREATE TABLE tblUrlsVisted (url text, date text)''')
                     print("Created tblUrlsVisted Table")
 
                     # Save (commit) the changes
