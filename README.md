@@ -13,7 +13,7 @@ Download or clone the directory.
 
 ## Requirements
 
-Python, sqlite3, selenium
+Python, sqlite3, selenium, chromedriver.exe(must in same folder as .exe or script)
 
 ## Configuration File
 
@@ -36,11 +36,11 @@ categories = #fractalart #fractals #prettyArt
 ```
 **like_limit_per_catgeory** -Limit of likes per category
 
-**like_delay_range** - Determines the sleep time range between likes. ( DO NOT SET TO LOW IF YOU VALUE YOUR ACCOUNT) Recommended speed is 36 70.
+**like_delay_range** - Determines the sleep time range between likes. (DO NOT SET TOO LOW IF YOU VALUE YOUR ACCOUNT) Recommended speed is 36 70.
 
-**scroll_count** - Number scrolls you used when collecting urls to like. (Increase this if you notice your *skips* are high and its effecting *Urls Available* or *Urls in Queue to Low* where you *limit*
+**scroll_count** - Number scrolls you used when collecting urls to like. (Increase this if you notice your *skips* are high and its effecting *Urls Available* or *Urls in Queue too Low* and lower then your *limit* set in config.
 
-**categories** - All catagories you whish to navigate through. **must have be #category** seperated by **space**.
+**categories** - All catagories you wish to navigate through. **must have be #category** seperated by **space**.
 
 ## Usage
 
