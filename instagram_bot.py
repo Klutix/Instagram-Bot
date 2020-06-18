@@ -27,7 +27,6 @@ class instagram_automation:
         self.set_config_from_ini()
         
         #Chrome Driver Setup---------------------------------------------
-        #options create options to handle profiles and or headless
         self._chrome_options = Options()
         
         #chrome driver hardcoded to current path
@@ -35,16 +34,6 @@ class instagram_automation:
 
         #set the environment
         os.environ["webdriver.chrome.driver"] = self.chromedriver
-
-        
-        if(self._HEADLESS):
-            #make headless
-            self._chrome_options.add_argument('--remote-debugging-port=9222')
-            self._chrome_options.add_argument("--headless")
-            self._chrome_options.add_argument("--disable-gpu") # needed for headless
-            #self._chrome_options.add_argument("window-size=1200x600");
-            self._chrome_options.add_argument('--lang=en-us')
-            self._chrome_options.add_argument("--enable-extensions")
     
         #add the profile to options
         if(not self._USE_LOGIN):
@@ -63,19 +52,13 @@ class instagram_automation:
             exit()
 
             print("Tables Already Exist")
-
-        #ok setup the results varaiables
-        
+ 
         self._likes = 0
         self._skips = 0
         self._skips_list = []
-
         self._enabled = True
         self._paused = False
-
         self._state = "OFF"
-
-        #more out variables
         self._urls_remaining_count = 0
         self._urls_in_queue = 0
         self._time_remaining = 0
@@ -83,10 +66,10 @@ class instagram_automation:
         self._category_current = ''
         self._date = datetime.date.today()
         self._likes_today = 0
-
         self._paused_time = 0
         self._issue = None
-        
+
+        #start the input loop
         self.cmd_in()
 
         
@@ -122,7 +105,6 @@ class instagram_automation:
         #get username textbox
         try:
             elem = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.NAME , 'username')))
-        #elem = self.driver.find_element_by_name("username")
             elem.clear()
         except TimeoutException:
             return 
@@ -133,7 +115,6 @@ class instagram_automation:
 
         #get password textbox
         elem = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.NAME , 'password')))
-        #elem = self.driver.find_element_by_name("password")
         elem.clear()
         
         #send password to textbox
@@ -155,8 +136,6 @@ class instagram_automation:
            print("Login Successful")
            
             
-
-
     #creates a template CONFIG.ini | user then tailors it to their needs
     def create_example_ini(self):
          if not os.path.exists('config.ini'):
@@ -168,7 +147,6 @@ class instagram_automation:
             config['LOGIN']['PASSWORD'] = 'NONE'
             config['LOGIN']['GOOGLE_PROFILE_PATH'] = "C:\\Users\\YOUR_USER_NAME\\AppData\\Local\\Google\\Chrome\\User Data" 
             config['BOT_CONFIG'] = {}
-            config['BOT_CONFIG']['HEADLESS'] = '0'
             config['BOT_CONFIG']['LIKE_LIMIT_PER_CATGEORY'] = '5'
             config['BOT_CONFIG']['LIKE_DELAY_RANGE'] = '15 60'
             config['BOT_CONFIG']['SCROLL_COUNT'] = '5'
@@ -187,28 +165,23 @@ class instagram_automation:
             #create configuration file if not exist
             #pull from the config file
             config = configparser.ConfigParser()
-            config.read('CONFIG.ini')
-            
+            config.read('CONFIG.ini')     
             self._GOOGLE_PROFILE_PATH     = config['LOGIN']['GOOGLE_PROFILE_PATH']
             self._LIKE_LIMIT_PER_CATGEORY = int(config['BOT_CONFIG']['LIKE_LIMIT_PER_CATGEORY'])
             self._LIKE_DELAY_RANGE        = list(map(int,config['BOT_CONFIG']['LIKE_DELAY_RANGE'].split()))
             self._SCROLL_COUNT            = int(config['BOT_CONFIG']['SCROLL_COUNT'])
-            self._CATEGORIES              = config['BOT_CONFIG']['CATEGORIES'].split()
-            self._HEADLESS                = bool(int(config['BOT_CONFIG']['HEADLESS']))
+            self._CATEGORIES              = config['BOT_CONFIG']['CATEGORIES'].split()   
             self._USER_NAME               = config['LOGIN']['USERNAME'] 
             self._PASSWORD                = config['LOGIN']['PASSWORD']
-            self._USE_LOGIN               = bool(int(config['LOGIN']['USE_LOGIN']))
-                                                     
-            
+            self._USE_LOGIN               = bool(int(config['LOGIN']['USE_LOGIN']))       
         else:
             print("error.. missing CONFIG.ini")
 
     #creates Results.txt with results of run <<----this needs to be adjusted for every run in case of error
     def create_results_file(self):
-        t = self._paused_time + int(-1*(self._start - timeit.default_timer()))
-        formated_time = time.strftime('%H:%M:%S', time.gmtime(t))
-        
         print("Creating results file: Results.txt")
+        t = self._paused_time + int(-1*(self._start - timeit.default_timer()))
+        formated_time = time.strftime('%H:%M:%S', time.gmtime(t)) 
         date = datetime.datetime.now()
         config = configparser.ConfigParser()
         config['Results_{}'.format(date)] = {}
@@ -217,19 +190,14 @@ class instagram_automation:
         config['Results_{}'.format(date)]['CATEGORIES'] = str(self._CATEGORIES)
         config['Results_{}'.format(date)]['LIKES_TODAY'] = str(self._likes_today)
         config['Results_{}'.format(date)]['RUNTIME'] = str(formated_time)
-
-        
+ 
         if(self._issue is not None):
             config['Results_{}'.format(date)]['ISSUE'] = self._issue
                                                                
-
         with open('Results.txt', 'a') as configfile:
             config.write(configfile)
 
         print("Created results file.")
-
-    def update_likes_today():
-        pass
 
     #custom sleep function to handle in possible range
     def sleep(self,_from,_to):
@@ -296,18 +264,15 @@ class instagram_automation:
     def get_posts_urls(self):
         print('getting url list..')
         time.sleep(1)
-        #gets urls listed on page
-        #--------------
-        #scroll down to get more results
+        
         elems = []
         url_list = []
         temp_list = []
 
         if(self._SCROLL_COUNT == 0): #fix so scroll must happen once
             self._SCROLL_COUNT = 1
-        
-        for x in range(0, self._SCROLL_COUNT):
-            
+        #scroll down to get more results
+        for x in range(0, self._SCROLL_COUNT):       
             state = self._manage_pause()
             self._print_feedback()
             if(not self._enabled):
@@ -318,8 +283,7 @@ class instagram_automation:
                     break
                 url = elem.get_attribute("href")
                 if('.com/p' in url):  
-                    temp_list.append(url)
-                    
+                    temp_list.append(url)             
             print("Scrolling..")
             self.scroll()
             time.sleep(2)
@@ -386,7 +350,6 @@ class instagram_automation:
                     #we have already liked this in the past sorted added to the DB
                     self.c.execute(sql,[post,self._date])
                     self.conn.commit()
-                    #self.ltd = self.ltd + 1     #likes to date
                     self._skips = self._skips + 1
                     print('Skipping {}'.format(post))
                 else:
@@ -421,8 +384,8 @@ class instagram_automation:
                     self.conn.commit()
                     print("Tables Created")
                 except:
-                    pass
-                    #print("Tables Already Exist")
+                    pass #Tables Already Exist
+                    
 
                 self.set_config_from_ini()
                 self._paused_time = 0
@@ -431,15 +394,14 @@ class instagram_automation:
                 self.enabled(True)
                 self.pause(False)
                 self.open_instagram()
-                if(self._HEADLESS == True or self._USE_LOGIN == True):
+                if(self._USE_LOGIN == True):
                     self.login(self._USER_NAME,self._PASSWORD)
                 elif('YOUR_USER_NAME' in self._GOOGLE_PROFILE_PATH):
                     print("!! -- Replace <YOUR_USER_NAME> in GOOGLE_PROFILE_PATH in CONFIG.ini then rerun program")
                     print("Exiting Program")
                     input("Press Enter to Exit Program...")
                     exit()
-                    #make sure user has been set correctly #needs to be adjusted for login with headless
-            
+                    
                 for c in self._CATEGORIES:
                     if(self._issue is None):
                         self._category_current = c
