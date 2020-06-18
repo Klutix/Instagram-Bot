@@ -2,8 +2,6 @@
 
 Instagram like-bot for Windows (not tested on Linux)
 
-If you want to embed images, this is how you do it:
-
 ![Instagram Like-bot](https://github.com/Klutix/Images/blob/master/instagram%20like%20bot.png)
 
 
