@@ -44,6 +44,8 @@ categories = #fractalart #fractals #prettyArt
 
 ## Usage
 
+You can simply use the exe. in the *Dist* folder. or You import into a script and run. Exmaple:
+
 ```python
 import instagram_automation
 
