@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 import sqlite3
 import threading
 import configparser 
@@ -80,8 +81,11 @@ class instagram_automation:
         self._likes_today = 0
 
         self._paused_time = 0
+        self._issue = None
         
         self.cmd_in()
+
+        
         
           
     #config getters and setters ------------
@@ -154,6 +158,9 @@ class instagram_automation:
 
     #creates Results.txt with results of run <<----this needs to be adjusted for every run in case of error
     def create_results_file(self):
+        t = self._paused_time + int(-1*(self._start - timeit.default_timer()))
+        formated_time = time.strftime('%H:%M:%S', time.gmtime(t))
+        
         print("Creating results file: Results.txt")
         date = datetime.datetime.now()
         config = configparser.ConfigParser()
@@ -162,6 +169,12 @@ class instagram_automation:
         config['Results_{}'.format(date)]['SKIPS'] = str(self._skips_list)
         config['Results_{}'.format(date)]['CATEGORIES'] = str(self._CATEGORIES)
         config['Results_{}'.format(date)]['LIKES_TODAY'] = str(self._likes_today)
+        config['Results_{}'.format(date)]['RUNTIME'] = str(formated_time)
+
+        
+        if(self._issue is not None):
+            config['Results_{}'.format(date)]['ISSUE'] = self._issue
+                                                               
 
         with open('Results.txt', 'a') as configfile:
             config.write(configfile)
@@ -219,30 +232,70 @@ class instagram_automation:
             return True
         return False
 
+    def _check_for_block(self):
+        try:
+            WebDriverWait(self.driver, 1).until(EC.presence_of_element_located((By.XPATH,"//*[text()='You’re Temporarily Blocked']")))
+            self._issue = 'You’re Temporarily Blocked'
+            return True
+        except TimeoutException:
+            try:
+                self.driver.find_element_by_xpath("//*[text()='Action Blocked']")
+                self._issue = "Action Blocked"
+                return True
+            except NoSuchElementException:
+                return False
+
     #gets a list of urls from search results page
     def get_posts_urls(self):
         print('getting url list..')
+        time.sleep(1)
         #gets urls listed on page
-        elems = self.driver.find_elements_by_xpath("//a[@href]")
-        count = 0
+        #--------------
+        #scroll down to get more results
+        elems = []
         url_list = []
-        for elem in elems:
+        temp_list = []
+
+        if(self._SCROLL_COUNT == 0): #fix so scroll must happen once
+            self._SCROLL_COUNT = 1
+        
+        for x in range(0, self._SCROLL_COUNT):
             state = self._manage_pause()
-            if(state == "OFF"):
-                break
-            url = elem.get_attribute("href")
-            #grab on post with /p which means its a user post
-            if('.com/p' in url):
-                #check if url is already exist in DB
-                if(self._is_used_url(url)):
-                    self._skips = self._skips + 1
-                else:
-                    url_list.append(url)
-                    print(url)
+            self._print_feedback()
+            if(not self._enabled):
+                return
+            elems = self.driver.find_elements_by_xpath("//a[@href]")
+            for elem in elems:
+                if(state == "OFF"):
+                    break
+                url = elem.get_attribute("href")
+                if('.com/p' in url):  
+                    #check if url is already exist in DB
+                    #if(self._is_used_url(url)):
+                    #    self._skips = self._skips + 1
+                    #else:
+                    temp_list.append(url)
+                    #print(url)
+
+            self.scroll()
+            time.sleep(.5)
+
+        #remove duplicates
+        temp_list = list(dict.fromkeys(temp_list))
+
+        for url in temp_list:          
+            #check if url is already exist in DB
+            if(self._is_used_url(url)):
+                self._skips = self._skips + 1
+            else:
+                url_list.append(url)
+                print(url)
+                    
         self._skips_list.append(self._skips)
+        
         #count add to total grabbed
         self._urls_remaining_count = len(url_list)
-        #a = self._LIKE_LIMIT_PER_CATGEORY
+
         if(self._LIKE_LIMIT_PER_CATGEORY <= self._urls_remaining_count):
             self._urls_in_queue = self._LIKE_LIMIT_PER_CATGEORY
         else:
@@ -253,49 +306,55 @@ class instagram_automation:
     def like_posts(self,post_list_urls):
         count = 0
         for post in post_list_urls:
-            self._last_url = post
-            state = self._manage_pause()
-            self._print_feedback()
-            if(state == "OFF"):
-                break
-            if (count == self._LIKE_LIMIT_PER_CATGEORY):
-                print("like limit reached")
-                break
-            
-            #navigate to url in url list
-            self.driver.get(post)
-            
-            #get the like icon
-            elem = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'svg')))
-            time.sleep(1) # might not need..added for rendering tests for double like
-            sql = ''' INSERT INTO tblUrlsVisted(url,date) VALUES(?,?) '''
-            
-            #check if shows "Like or Unlike" if like exist on page then go and like
-            if (elem.get_attribute("aria-label") == "Like"):
-                elem.click()
-                count = count + 1
-                print('{i} liked post {p}'.format(p = post, i = self._likes + 1))         
-                self.c.execute(sql,[post,self._date])
-                self.conn.commit()
-                #self.ltd = self.ltd + 1      #likes to date
-                self._likes = self._likes + 1  #likes this session
-            elif(elem.get_attribute("aria-label") == "Unlike"): 
-                #we have already liked this in the past sorted added to the DB
-                self.c.execute(sql,[post,self._date])
-                self.conn.commit()
-                #self.ltd = self.ltd + 1     #likes to date
-                self._skips = self._skips + 1
-                print('Skipping {}'.format(post))
-            else:
-                print("Something isnt right.. not loaded or not were im supposed to be. Moving on..")
-                continue
-
-            self._urls_remaining_count = self._urls_remaining_count - 1
-            self._urls_in_queue = self._urls_in_queue - 1
-            #sleep for moment to keep bot human like    
-            self._sleep_with_iterupt(self._LIKE_DELAY_RANGE[0],self._LIKE_DELAY_RANGE[1])
             if(not self._enabled):
                 return
+            if(self._issue is None):
+                self._last_url = post
+                state = self._manage_pause()
+                self._print_feedback()
+                if(state == "OFF"):
+                    break
+                if (count == self._LIKE_LIMIT_PER_CATGEORY):
+                    print("like limit reached")
+                    break
+                
+                #navigate to url in url list
+                self.driver.get(post)
+                
+                #get the like icon
+                elem = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'svg')))
+                time.sleep(1) # might not need..added for rendering tests for double like
+                sql = ''' INSERT INTO tblUrlsVisted(url,date) VALUES(?,?) '''
+                
+                #check if shows "Like or Unlike" if like exist on page then go and like
+                if (elem.get_attribute("aria-label") == "Like"):
+                    elem.click()
+                    count = count + 1
+                    print('{i} liked post {p}'.format(p = post, i = self._likes + 1))         
+                    self.c.execute(sql,[post,self._date])
+                    self.conn.commit()
+                    #self.ltd = self.ltd + 1      #likes to date
+                    self._likes = self._likes + 1  #likes this session
+
+                    #check for block
+                    self._check_for_block()
+                elif(elem.get_attribute("aria-label") == "Unlike"): 
+                    #we have already liked this in the past sorted added to the DB
+                    self.c.execute(sql,[post,self._date])
+                    self.conn.commit()
+                    #self.ltd = self.ltd + 1     #likes to date
+                    self._skips = self._skips + 1
+                    print('Skipping {}'.format(post))
+                else:
+                    print("Something isnt right.. not loaded or not were im supposed to be. Moving on..")
+                    continue
+
+                self._urls_remaining_count = self._urls_remaining_count - 1
+                self._urls_in_queue = self._urls_in_queue - 1
+                #sleep for moment to keep bot human like    
+                self._sleep_with_iterupt(self._LIKE_DELAY_RANGE[0],self._LIKE_DELAY_RANGE[1])
+                if(not self._enabled):
+                    return
     #main bot driver
     def run(self):     
         while(True):
@@ -329,26 +388,19 @@ class instagram_automation:
                 self.pause(False)
                 self.open_instagram()
                 for c in self._CATEGORIES:
-                    self._category_current = c
-                    state = self._manage_pause()
-                    self._print_feedback()
-                    if(state == "OFF"):
-                        break
-                    print("Searching..")
-                    self.search(c)
-                    #scroll down to get more results
-                    for x in range(0, self._SCROLL_COUNT):
-                        self._manage_pause()
+                    if(self._issue is None):
+                        self._category_current = c
+                        state = self._manage_pause()
+                        self._print_feedback()
+                        if(state == "OFF"):
+                            break
+                        print("Searching..")
+                        self.search(c)
+                        urls = self.get_posts_urls()
+                        self.like_posts(urls)
+                        
                         if(not self._enabled):
-                            return
-                        self.scroll()
-                        time.sleep(1)
-                    #get all urls_post on page
-                    urls = self.get_posts_urls()
-                    self.like_posts(urls)
-                    
-                    if(not self._enabled):
-                        break
+                            breakpoint
                 self.create_results_file()
                 self._state = "DONE"
                 self._print_feedback()
@@ -492,6 +544,7 @@ class instagram_automation:
             "\n"             
             "\033[1;37;40mEnter Command or # at anytime...\n")
         self._clear()
+        formated_time = time.strftime('%H:%M:%S', time.gmtime(stop))
         print(out_layout.format(urls_remaining_count = self._urls_remaining_count,
                                 state = self._state,
                                 tm = self._time_remaining,
@@ -503,7 +556,7 @@ class instagram_automation:
                                 skips = self._skips,
                                 today_likes = self._likes_today,
                                 limit = self._LIKE_LIMIT_PER_CATGEORY,
-                                rn = stop))
+                                rn = formated_time))
 
     
 
