@@ -46,6 +46,8 @@ categories = #fractalart #fractals #prettyArt
 
 You can use the executable in the *Dist* folder or you import into a script and use like:
 
+**!!make sure all other instances of chrome are closed before running bot!! once the bot has opened its own chrome instance feel free to do as you please with your own instances. If the bots instance is closed you must restart the bot!!**
+
 ```python
 import instagram_automation
 
