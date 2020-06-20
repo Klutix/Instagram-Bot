@@ -14,6 +14,8 @@ Download or clone the directory.
 
 Python, sqlite3, selenium, chromedriver.exe
 
+Different versions chromedriver can be found @ http://chromedriver.chromium.org/downloads
+
 ## Configuration File
 
 A configuration file is included in this repo, although the program does generate a sample config when one first run if none exist.
