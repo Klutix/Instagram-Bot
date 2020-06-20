@@ -9,9 +9,10 @@ Instagram like-bot for Windows (not tested on Linux)
 
 Download or clone the directory.
 
+
 ## Requirements
 
-Python, sqlite3, selenium, chromedriver.exe(must in same folder as .exe or script)
+Python, sqlite3, selenium, chromedriver.exe
 
 ## Configuration File
 
