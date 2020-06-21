@@ -89,12 +89,55 @@ class instagram_automation:
     def set_CATEGORIES(CATEGORIES):
         self._CATEGORIES = CATEGORIES
 
+    #feedback getters-----------------------
     def get_state(self):
         return (self._state)
 
-    #results getter
-    def get_results_list():
-        return [self._likes,self._skips,self._grabbed]
+    def get_run_time(self,_format ='%H:%M:%S' ):
+        stop = self._paused_time + int(-1*(self._start - timeit.default_timer()))
+        formated_time = time.strftime(_format, time.gmtime(stop))
+        return formated_time
+    
+    def get_sleep_time_remaining(self):
+        return self._time_remaining
+
+    def get_issue(self):
+        return self._issue
+
+    def get_last_url(self):
+        return self._last_url
+
+    def get_current_category(self):
+        return self._category_current
+
+    def get_likes_today(self):
+        return self._likes
+
+    def get_total_likes(self):
+        return self._likes_today
+
+    def get_skips(self):
+        return self._skips
+
+    def get_urls_in_queue(self):
+        return self._urls_in_queue
+
+    def get_urls_available(self):
+        return self._urls_remaining_count
+
+##state = self._state,
+##tm = self._time_remaining,
+##last_url = self._last_url,
+##queue = self._urls_in_queue,
+##catgories_list = self._CATEGORIES,
+##current_category = self._category_current,
+##likes = self._likes,
+##skips = self._skips,
+##today_likes = self._likes_today,
+##limit = self._LIKE_LIMIT_PER_CATGEORY,
+##rn = formated_time,
+##issue = self._issue))
+
 
     #this function is abit depreciated and profile is better to work with        
     def login(self,username, password):
