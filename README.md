@@ -49,16 +49,32 @@ You can use the executable in the *Dist* folder or you import into a script and 
 
 **!!make sure all other instances of chrome are closed before running bot!! once the bot has opened its own chrome instance feel free to do as you please with your own instances. If the bots instance is closed you must restart the bot!!**
 
+To use the default *cmd_in()*
+
 ```python
-import instagram_automation
+from Kokigram import instagram_automation
 
 if __name__ == "__main__":    
-    i = instagram_automation()   # starts the bot
-    i.cmd_in()                   # start the input loop
+    i = instagram_automation()   # create bot object
+    i.cmd_in()                   # start the input loop and show menu
     del i                        # delete the object to kill bot
     exit()
 ```
+If you wanna use call functions directly instead using cmd_in() you can.
+**This method will only respond to function calls if started from function calls. (still in the works...)**
+```python
+from Kokigram import instagram_automation
+
+ i = instagram_automation()   #create bot object
+ i.start()                    #starts the bot
+ i.pause()                    #pauses the bot
+ i.resume()                   #resume from pause or *(pause(False))*
+ i.stop()
+ del i
+ exit()
+ ```
 remember to include the chromedriver.exe in the same folder as the script or executable.
+
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
