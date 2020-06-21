@@ -503,7 +503,7 @@ class instagram_automation:
 
     #this handles the input to the bot when running assigned to thread in run        
     def cmd_in(self):       
-        t = threading.Thread(target=self.run)
+        self.t = threading.Thread(target=self.run)
         started = False
         self._print_feedback(False)
         while(True):
@@ -516,7 +516,7 @@ class instagram_automation:
                     print("STOPPED")
                     time.sleep(2)
                     self._print_feedback(False)
-                    t.join()
+                    self.t.join()
             elif(r == "pause" or r == "2"):
                 if(self._state == "ON"):
                     self.pause(True)
@@ -533,7 +533,7 @@ class instagram_automation:
                 if(self._state == "OFF" or self._state == "DONE" ):
                     self.enabled(True)
                     if(not started):
-                        t.start()
+                        self.t.start()
                         started = True 
 
                 
