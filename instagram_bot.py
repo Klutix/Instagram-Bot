@@ -51,7 +51,8 @@ class instagram_automation:
             input("Exiting Program.. Press Enter to Exit..")
             exit()
 
-            print("Tables Already Exist")
+        self._t = threading.Thread(target=self.run)
+        self._started = False
  
         self._likes = 0
         self._skips = 0
@@ -69,11 +70,6 @@ class instagram_automation:
         self._paused_time = 0
         self._issue = None
 
-        #start the input loop
-        self.cmd_in()
-
-        
-        
           
     #config getters and setters ------------
     def get_GOOGLE_PROFILE_PATH():
@@ -279,7 +275,7 @@ class instagram_automation:
                 return
             elems = self.driver.find_elements_by_xpath("//a[@href]")
             for elem in elems:
-                if(state == "OFF"):
+                if(not self._enabled):
                     break
                 url = elem.get_attribute("href")
                 if('.com/p' in url):  
@@ -320,7 +316,7 @@ class instagram_automation:
                 self._last_url = post
                 state = self._manage_pause()
                 self._print_feedback()
-                if(state == "OFF"):
+                if(not self._enabled):
                     break
                 if (count == self._LIKE_LIMIT_PER_CATGEORY):
                     print("like limit reached")
@@ -358,6 +354,7 @@ class instagram_automation:
 
                 self._urls_remaining_count = self._urls_remaining_count - 1
                 self._urls_in_queue = self._urls_in_queue - 1
+                
                 #sleep for moment to keep bot human like    
                 self._sleep_with_iterupt(self._LIKE_DELAY_RANGE[0],self._LIKE_DELAY_RANGE[1])
                 if(not self._enabled):
@@ -365,7 +362,7 @@ class instagram_automation:
     #main bot driver
     def run(self):     
         while(True):
-            if(self._state == "ON"):
+            if(self._enabled):
                 try:
                     self.conn = sqlite3.connect('db_instagram_data.db')
                     self.c = self.conn.cursor()
@@ -377,7 +374,7 @@ class instagram_automation:
                     
                 try:
                     #set up two tables Questions and jobs applied to
-                    self.c.execute('''CREATE TABLE tblUrlsVisted (url text, date text)''')
+                    self.c.execute('''CREATE TABLE tblUrlsVisted (url text)''')
                     print("Created tblUrlsVisted Table")
 
                     # Save (commit) the changes
@@ -386,15 +383,16 @@ class instagram_automation:
                 except:
                     pass #Tables Already Exist
                     
-
                 self.set_config_from_ini()
                 self._paused_time = 0
                 self._start = timeit.default_timer()
                 self._skips = 0
                 self.enabled(True)
                 self.pause(False)
+
                 self.open_instagram()
-                if(self._USE_LOGIN == True):
+                
+                if(self._USE_LOGIN):
                     self.login(self._USER_NAME,self._PASSWORD)
                 elif('YOUR_USER_NAME' in self._GOOGLE_PROFILE_PATH):
                     print("!! -- Replace <YOUR_USER_NAME> in GOOGLE_PROFILE_PATH in CONFIG.ini then rerun program")
@@ -403,11 +401,14 @@ class instagram_automation:
                     exit()
                     
                 for c in self._CATEGORIES:
+                    if(not self._enabled):
+                        break
+                    self._manage_pause()
                     if(self._issue is None):
                         self._category_current = c
                         state = self._manage_pause()
                         self._print_feedback()
-                        if(state == "OFF"):
+                        if(not self.enabled):
                             break
                         print("Searching..")
                         self.search(c)
@@ -425,18 +426,11 @@ class instagram_automation:
                 
     #this PAUSED and OFF when set
     def _manage_pause(self):
-        if(not self._enabled):
-            self._print_feedback()
-
         while(self._paused):
             self._print_feedback()
             time.sleep(1)
             if(not self._enabled):
                 return self._state
-        if(self._state != "OFF"):
-            self._state = "ON"
-        self._paused = False
-        
         return self._state
     
     #this counts all likes in the DB the current day
@@ -444,14 +438,40 @@ class instagram_automation:
         sql = "SELECT COUNT(url) from tblUrlsVisted WHERE date = '{}'".format(self._date)
         self.c.execute(sql)
         self._likes_today = self.c.fetchone()[0]
-        
+
+    def stop(self):
+        if(self._enabled):
+            self.enabled(False)
+            while(self._state != "DONE"):
+                print("STOPPED")
+                time.sleep(2)
+                self._print_feedback(False)
+
+
+
+    def start(self):
+         if(self._state == "OFF" or self._state == "DONE" ):
+            self.enabled(True)
+            if(not self._started):
+                self._t.start()
+                self._started = True
+                
+    def resume(self):
+        if(self._state == "PAUSED"):
+            self.pause(False)
+            self._start = timeit.default_timer()
+            print("RESUMED")
+            time.sleep(2)
+    
     #sets pause flag   
-    def pause(self, v):
+    def pause(self, v = True):
         self._paused = v
         if(self._paused): 
             self._state = "PAUSED"
         else:
-            self._state = "ON"
+            if(self.enabled):
+                self._state = "ON"
+                
     #sets enabled flag
     def enabled(self,v):
         self._enabled = v
@@ -481,7 +501,7 @@ class instagram_automation:
             state = self._manage_pause()
             self._print_feedback()
 
-    #this handles the input to the bot when running assigned to thread in run
+    #this handles the input to the bot when running assigned to thread in run        
     def cmd_in(self):       
         t = threading.Thread(target=self.run)
         started = False
@@ -503,29 +523,19 @@ class instagram_automation:
                     self._paused_time =  self._paused_time + int(-1*(self._start - timeit.default_timer()))
                     print("PAUSED")
                     time.sleep(2)
-                else:
-                    continue
             elif(r == "resume" or r == "3"):
                 if(self._state == "PAUSED"):
                     self.pause(False)
                     self._start = timeit.default_timer()
                     print("RESUMED")
                     time.sleep(2)
-                    
-                else:
-                    continue
             elif(r == "start"or r == "1"):
                 if(self._state == "OFF" or self._state == "DONE" ):
                     self.enabled(True)
                     if(not started):
                         t.start()
                         started = True 
-                else:
-                    continue
-            else:
-                continue
-            while(self._state == state):
-                time.sleep(1)
+
                 
     #this prints feedback for bot
     def _print_feedback(self, is_running = True):
