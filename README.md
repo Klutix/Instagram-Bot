@@ -61,7 +61,8 @@ if __name__ == "__main__":
     exit()
 ```
 If you wanna use call functions directly instead using cmd_in() you can.
-**This method will only respond to function calls if started from function calls. (still in the works...)**
+**Note: if You decide to you the cmd_in() for input keep in mind it is a input loop so you will need to thread the function if you want more flexibility in the program.**
+
 ```python
 from Kokigram import instagram_automation
 
