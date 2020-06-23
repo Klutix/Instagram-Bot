@@ -37,9 +37,13 @@ scroll_count = 5
 categories = #fractalart #fractals #prettyArt
 ```
 **print_feed_back** - Turns on/off printing to the console
+
 **like_limit_per_catgeory** - Limit of likes per category
+
 **like_delay_range** - Determines the sleep time range between likes. (DO NOT SET TOO LOW IF YOU VALUE YOUR ACCOUNT) Recommended speed is 36 70.
+
 **scroll_count** - Number scrolls you used when collecting urls to like. (Increase this if you notice your *skips* are high and its effecting *Urls Available* or *Urls in Queue too Low* and lower then your *limit* set in config.
+
 **categories** - All catagories you wish to navigate through. **must have be #category** seperated by **space**.
 
 ## Usage
